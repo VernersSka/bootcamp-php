@@ -1,49 +1,48 @@
 <!DOCTYPE html>
 <link rel="stylesheet" href="style.css">
 <?php  
-  // pievieno navigāciju
+
   include "navigation.php";
 
-  //Pārbaude vai ir uzspiesta reset poga
+  $bot_begins = "bot_begins.txt";
+  $bot_triggered = file_get_contents($bot_begins);
+
+  /** Pārbauda vai RESET poga nospiesta */
   if (array_key_exists('reset', $_GET) && $_GET['reset'] == 'true') {
+    file_put_contents($bot_begins, "false");
     resetGame();
     $moves = [];
-  }
-  else {
-    // poga nav nospiesta - $moves mainīgajā ieliek izdarītos gājienus
+  } else {
     $moves = get();
   }
 
+  /** Pārbauda vai BOT FIRST poga nospiesta */
   if (array_key_exists('bot-first', $_GET)) {
+
+    file_put_contents($bot_begins, "true");
+    $bot_triggered = "true";
+
     $symbol = count($moves) % 2 == 0 ? 'x' : 'o';
     if (@$moves['winner'] === null && @$moves['draw'] === null) {
-      
       bot_moves($moves, $symbol);
-      
       checkWinner($symbol);
       checkDraw();
     }
   }
 
-  // pārbauda vai ir padota id vērtība (vai click uz kāda lauka)
-  if (array_key_exists('id', $_GET)) {
-    // pēc skaita nosaka vai jāliek X vai O
+  /** Pārbauda vai uzspiests uz kāda lauka */
+  if (array_key_exists('id', $_GET) && !array_key_exists($_GET['id'], $moves)) {
     $symbol = count($moves) % 2 == 0 ? 'x' : 'o';
-    
-    // pārbauda vai NAV noteikts uzvarētājs
+
     if (@$moves['winner'] === null && @$moves['draw'] === null) {
-      // uzvarētājs nav noteikts - pievieno simbolu json failā
       add($_GET['id'], $symbol);
       checkWinner($symbol);
       checkDraw();
     }
     
-    $moves = get();
-    
+    /** Bots izdara gājienu */
     if (@$moves['winner'] === null && @$moves['draw'] === null) {
-      
       bot_moves($moves, $symbol);
-      
       $bot_symbol = $symbol == 'x' ? 'o' : 'x';
       checkWinner($bot_symbol);
       checkDraw();
@@ -51,44 +50,45 @@
   }
 ?>
 
-
 <div class="game_board">
 
   <?php 
 
   for ($i = 1; $i <= 9; $i++) {
     $symbol = array_key_exists($i, $moves) ? $moves[$i] : '';
-    // ievieto simbolu iekš <a>
     echo "<a href='?id=$i'>" . $symbol . "</a>";
   }
+
   ?>
 
 </div>
 
+
 <div class="game-options">
-  <div class="bot-first-btn">
-    <a href="?bot-first">Bot moves first</a>
-  </div>
+  
+  <?php
+    if ($bot_triggered == "false") {
+      echo "<div class='bot-first-btn'>";
+      echo "<a href=" . "?bot-first" . ">Bot moves first</a>";
+      echo "</div>";
+    }
+  ?>
 
   <div class="reset-btn">
     <a href="?reset=true">RESET BOARD</a>
   </div>
 </div>
 
+
 <?php
 
+/** Paņem izdarītos gājienus no JSON faila */
 function get() {
-  // pārbauda vai eksistē fails
   if (!file_exists('tic_data.json')) {
-    // fails neeksistē
-    // pārtrauc funkcijas izpildi izvadot tukšu masīvu
     return [];
   }
 
-  // paņem gājienus json formātā no faila
   $content = file_get_contents('tic_data.json');
-
-  // JSON formātu pārvērš masīvā
   $data = json_decode($content, true);
   if (!is_array($data)) {
     $data = [];
@@ -97,28 +97,23 @@ function get() {
   return $data;
 }
 
+/** Ieraksta izdarītos gājienus JSON failā */
 function add($id, $symbol) {
-  // pieslēdz globālo mainīgo
   global $moves;
-  // ja ID NAV gājienu masīvā
   if (!array_key_exists($id, $moves)) {
-    // tad saglabā jauno simbolu gājienu masīvā
     $moves[$id] = $symbol;
-    // un pārvērš JSON formātā
-    $json = json_encode($moves);
-    // un visus gājienus saglabā failā
+    $json = json_encode($moves, JSON_PRETTY_PRINT);
     file_put_contents('tic_data.json', $json);
   }
 }
 
-// sāk spēli no jauna
+/** RESETo spēli */
 function resetGame() {
-  // failā saglabā tukšu objektu (ti, ka gājieni nav izdarīti)
   file_put_contents('tic_data.json', '{}');
-  // "nonullē" adrešu joslu
   header('Location: ?');
 }
 
+/** Bota gājiens */
 function bot_moves($except, $symbol) {
   $random = mt_rand(1,9);
   $bot_symbol = count($except) % 2 == 0 ? 'x' : 'o';;
@@ -131,7 +126,7 @@ function bot_moves($except, $symbol) {
   bot_moves($except, $symbol);
 }
 
-
+/** Pārbauda vai ir uzvarētājs */
 function checkWinner($symbol) {
   // pieslēdz globālo mainīgo
   global $moves;
@@ -164,6 +159,7 @@ function checkWinner($symbol) {
     }
   }
 
+  /** Pārbauda vai ir neizšķirts */
   function checkDraw() {
     global $moves;
     if (count($moves) == 9 && (!array_key_exists('winner', $moves))) {
@@ -174,17 +170,3 @@ function checkWinner($symbol) {
   }
 
 ?>
-
-
-<!-- 
-  Gļuki
-  1. bota pogu jebkurā brīdī var nospiest un tiks izdarīts gājiens
-  2. uzspiežot uz aizņemta lauciņa notriggerojas bots - vajadzētu notikt precīzi NEKAM! 
--->
-
-<!-- 
-  risinājums
-  1.
-  - uztaisīt bota trigger pogu ("state") ar ko pirms partijas var aktivizēt botu. partijas laikā poga neaktīva.
-  
- -->
