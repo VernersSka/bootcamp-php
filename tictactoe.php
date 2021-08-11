@@ -69,7 +69,7 @@
   <?php
     if ($bot_triggered == "false") {
       echo "<div class='bot-first-btn'>";
-      echo "<a href=" . "?bot-first" . ">Bot moves first</a>";
+      echo "<a href=" . "?bot-first" . ">Bot move</a>";
       echo "</div>";
     }
   ?>
